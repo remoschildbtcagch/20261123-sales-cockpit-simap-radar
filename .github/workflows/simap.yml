@@ -1,0 +1,31 @@
+aml
+name: SIMAP-Abruf
+
+on:
+  schedule:
+    - cron: '45 2 * * *'   # täglich 03:45 Winterzeit / 04:45 Sommerzeit (Zürich)
+  workflow_dispatch:        # «Run workflow» zum Testen von Hand
+
+permissions:
+  contents: write
+
+jobs:
+  abruf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: simap abrufen
+        run: node fetch_simap.mjs
+      - name: Daten speichern
+        run: |
+          git config user.name "simap-abruf"
+          git config user.email "actions@users.noreply.github.com"
+          grenze=$(date -d '30 days ago' +%F)
+          for f in data/20*.json; do [ -e "$f" ] && [ "$(basename "$f" .json)" \< "$grenze" ] && rm "$f"; done; true
+          git add -A data
+          git commit -m "simap $(date +%F)" || echo "keine Änderung"
+          git push
